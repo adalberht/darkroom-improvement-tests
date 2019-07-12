@@ -1,5 +1,5 @@
 ## Darkroom Improvement Tests Repository
-This repository is used for doing research for [Darkroom](github.com/gojek/darkroom)
+This repository is used for doing research for [Darkroom](https://github.com/gojek/darkroom)
 improvement.
 
 ## Instructions
