@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"bytes"
 	"flag"
 	"fmt"
 	"github.com/gojek/darkroom/pkg/processor/native"
@@ -13,6 +12,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -54,33 +54,19 @@ type ProcessorStats []*ProcessorStat
 
 func (s ProcessorStats) WriteTo(w io.Writer) (int64, error) {
 	formatRow := "Time (file avg): %15.3fs\n"
-	fmt.Fprintf(w, "\nResults\n-------\n")
+	_, _ = fmt.Fprintf(w, "\nResults\n-------\n")
 	for _, st := range s {
-		fmt.Fprintf(w, "Total: %f\n", st.Total.Seconds())
-		fmt.Fprintf(w, formatRow, float64(st.TimeAvg())/1e9)
-		fmt.Fprintf(w, "Minimum: %fs\n", st.Minimum.Seconds())
-		fmt.Fprintf(w, "Maximum: %fs\n", st.Maximum.Seconds())
-		fmt.Fprintf(w, "\n")
+		_, _ = fmt.Fprintf(w, "Total: %f\n", st.Total.Seconds())
+		_, _ = fmt.Fprintf(w, formatRow, float64(st.TimeAvg())/1e9)
+		_, _ = fmt.Fprintf(w, "Minimum: %fs\n", st.Minimum.Seconds())
+		_, _ = fmt.Fprintf(w, "Maximum: %fs\n", st.Maximum.Seconds())
+		_, _ = fmt.Fprintf(w, "\n")
 	}
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 	return 1, nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func Resize(m service.Manipulator, files []string) (*ProcessorStat, *ProcessorStat) {
+func Resize(files []string) (*ProcessorStat, *ProcessorStat) {
 	s1, s2 := ProcessorStat{
 		Minimum: math.MaxInt64,
 		Maximum: math.MinInt64,
@@ -181,11 +167,17 @@ func Resize(m service.Manipulator, files []string) (*ProcessorStat, *ProcessorSt
 
 			sideToSideImage := createImageSideToSide(uncompressedImg, compressedImg)
 			data, err = ucp.Encode(sideToSideImage, "png")
-			newPath := strings.Replace(origPath, "speedtest/orig", "compressiontest/orig_compressed", 1)
+
 			if *verbose {
-				fmt.Printf("File %d w/: %s\nWithout compression: %d KB, After compression: %d KB\n\n", i+1, newPath, len(uncompressedData)/1024, len(compressedData)/1024)
+				fmt.Printf("File %d w/: %s\nWithout compression: %d KB, After compression: %d KB\n\n",
+					i+1, origPath, len(uncompressedData)/1024, len(compressedData)/1024)
 			}
-			ioutil.WriteFile(newPath, data, 400)
+			newPath := OutPath + "/" + filepath.Base(origPath)
+			fmt.Println("Writing to " + newPath)
+			err = ioutil.WriteFile(OutPath+"/"+filepath.Base(origPath), data, 400)
+			if err != nil {
+				panic(err)
+			}
 		}(i, origPath)
 	}
 	globalWg.Wait()
@@ -194,31 +186,31 @@ func Resize(m service.Manipulator, files []string) (*ProcessorStat, *ProcessorSt
 
 var verbose = flag.Bool("verbose", true, "Print statistics for every single file processed")
 
-var LIMIT = 1
+var LIMIT = 25
+var InPath = "./test-images"
+var OutPath = "./compression-test-out"
 
 func main() {
 	defer profile.Start().Stop()
 
 	flag.Parse()
-	var dir string
 	if len(flag.Args()) > 0 {
-		dir = flag.Args()[0]
-	} else {
-		dir = "./orig"
+		InPath = flag.Args()[0]
 	}
 
-	files, _ := scanDir(dir, []string{"jpg", "jpeg", "png"})
+	files, _ := scanDir(InPath, []string{"jpg", "jpeg", "png"})
 	if len(files) == 0 {
-		fmt.Println("No supported files found in", dir)
+		fmt.Println("No supported files found in", InPath)
 		return
 	}
-	fmt.Printf("Found %d image files in %s\n", len(files), dir)
+	fmt.Printf("Found %d image files in %s\n", len(files), InPath)
 	if len(files) > LIMIT {
 		files = files[0:LIMIT]
 	}
 
 	var results ProcessorStats
-	ps1, ps2 := Resize(service.NewManipulator(native.NewBildProcessor()), files)
+	_ = os.Mkdir(OutPath, 0777)
+	ps1, ps2 := Resize(files)
 	results = append(results, ps1, ps2)
-	results.WriteTo(os.Stdout)
+	_, _ = results.WriteTo(os.Stdout)
 }

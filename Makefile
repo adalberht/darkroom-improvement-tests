@@ -14,6 +14,6 @@ format:
 	go fmt ./...
 
 run:
-	./compressiontest testimages
+	./compressiontest
 
 test-ci: compile lint format run
