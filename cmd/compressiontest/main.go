@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"github.com/anthonynsimon/bild/clone"
 	"github.com/gojek/darkroom/pkg/processor/native"
 	"github.com/gojek/darkroom/pkg/service"
 	"github.com/pkg/profile"
@@ -40,6 +42,7 @@ type ProcessorStat struct {
 	Maximum    time.Duration
 	Processed  int // Number of processed files
 	PercentSum float64
+	Name       string
 }
 
 func (s ProcessorStat) TimeAvg() time.Duration {
@@ -56,6 +59,7 @@ func (s ProcessorStats) WriteTo(w io.Writer) (int64, error) {
 	formatRow := "Time (file avg): %15.3fs\n"
 	_, _ = fmt.Fprintf(w, "\nResults\n-------\n")
 	for _, st := range s {
+		_, _ = fmt.Fprintf(w, "Processor Name: %s", st.Name)
 		_, _ = fmt.Fprintf(w, "Total: %f\n", st.Total.Seconds())
 		_, _ = fmt.Fprintf(w, formatRow, float64(st.TimeAvg())/1e9)
 		_, _ = fmt.Fprintf(w, "Minimum: %fs\n", st.Minimum.Seconds())
@@ -66,17 +70,22 @@ func (s ProcessorStats) WriteTo(w io.Writer) (int64, error) {
 	return 1, nil
 }
 
-func Resize(files []string) (*ProcessorStat, *ProcessorStat) {
+func Resize(files []string, compressionLevel int) (*ProcessorStat, *ProcessorStat) {
 	s1, s2 := ProcessorStat{
 		Minimum: math.MaxInt64,
 		Maximum: math.MinInt64,
+		Name:    "Uncompressed (Quality 100)",
 	}, ProcessorStat{
 		Minimum: math.MaxInt64,
 		Maximum: math.MinInt64,
+		Name:    fmt.Sprintf("Compressed (Quality %d)", compressionLevel),
 	}
 
-	ucp, cp := native.NewBildProcessor(), native.NewBildProcessorWithCompression(&native.CompressionOptions{
-		JpegQuality:         30,
+	ucp, cp := native.NewBildProcessorWithCompression(&native.CompressionOptions{
+		JpegQuality:         100,
+		PngCompressionLevel: png.BestCompression,
+	}), native.NewBildProcessorWithCompression(&native.CompressionOptions{
+		JpegQuality:         compressionLevel,
 		PngCompressionLevel: png.BestCompression,
 	})
 	m1, m2 := service.NewManipulator(ucp), service.NewManipulator(cp)
@@ -136,6 +145,10 @@ func Resize(files []string) (*ProcessorStat, *ProcessorStat) {
 
 				uncompressedImg, _, _ = ucp.Decode(uncompressedData)
 				uncompressedData, _ = ucp.Encode(uncompressedImg, "jpg")
+				uncompressedImg, _, _ = ucp.Decode(uncompressedData)
+				uncompressedImg = clone.AsRGBA(uncompressedImg)
+				y := uncompressedImg.Bounds().Dy()
+				addLabel(uncompressedImg.(*image.RGBA), 10, 9*y/10, fmt.Sprintf("Quality 100: %d KB", len(uncompressedData)/1024))
 			}()
 
 			go func() {
@@ -162,6 +175,10 @@ func Resize(files []string) (*ProcessorStat, *ProcessorStat) {
 
 				compressedImg, _, _ = cp.Decode(compressedData)
 				compressedData, _ = cp.Encode(compressedImg, "jpg")
+				compressedImg, _, _ = cp.Decode(compressedData)
+				compressedImg = clone.AsRGBA(compressedImg)
+				y := compressedImg.Bounds().Dy()
+				addLabel(compressedImg.(*image.RGBA), 10, 9*y/10, fmt.Sprintf("Quality %d: %d KB", compressionLevel, len(compressedData)/1024))
 			}()
 			wg.Wait()
 
@@ -186,7 +203,7 @@ func Resize(files []string) (*ProcessorStat, *ProcessorStat) {
 
 var verbose = flag.Bool("verbose", true, "Print statistics for every single file processed")
 
-var LIMIT = 25
+var LIMIT = 10
 var InPath = "./test-images"
 var OutPath = "./compression-test-out"
 
@@ -209,8 +226,20 @@ func main() {
 	}
 
 	var results ProcessorStats
-	_ = os.Mkdir(OutPath, 0777)
-	ps1, ps2 := Resize(files)
-	results = append(results, ps1, ps2)
-	_, _ = results.WriteTo(os.Stdout)
+	prevPath := OutPath
+	for i := 0; i <= 100; i += 5 {
+		OutPath = fmt.Sprintf("%s/quality_%d", prevPath, i)
+		_ = os.MkdirAll(OutPath, 0777)
+		ps1, ps2 := Resize(files, i)
+		results = append(results, ps1, ps2)
+		f, err := os.Create(OutPath + "/" + "stats.txt")
+		if err != nil {
+			panic(err)
+		}
+		f.Sync()
+		w := bufio.NewWriter(f)
+		_, _ = results.WriteTo(w)
+		w.Flush()
+		f.Close()
+	}
 }

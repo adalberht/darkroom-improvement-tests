@@ -13,6 +13,7 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/gojek/darkroom v0.0.3-0.20190711073015-13af3d2b0f4e
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
@@ -35,6 +36,7 @@ require (
 	go.etcd.io/bbolt v1.3.3 // indirect
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
 	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
+	golang.org/x/image v0.0.0-20190703141733-d6a02ce849c9
 	golang.org/x/mobile v0.0.0-20190711165009-e47acb2ca7f9 // indirect
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7 // indirect
 	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
