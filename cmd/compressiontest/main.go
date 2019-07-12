@@ -4,12 +4,10 @@ import (
 	//"bytes"
 	"flag"
 	"fmt"
-	"github.com/anthonynsimon/bild/clone"
 	"github.com/gojek/darkroom/pkg/processor/native"
 	"github.com/gojek/darkroom/pkg/service"
 	"github.com/pkg/profile"
 	"image"
-	"image/color"
 	"image/png"
 	"io"
 	"io/ioutil"
@@ -20,48 +18,17 @@ import (
 	"time"
 )
 
-func createImageSideToSide(img1, img2 image.Image) image.Image {
-	if img1.Bounds().Dy() > img2.Bounds().Dy() {
-		return createImageSideToSide(img2, img1)
-	}
-	img1 = clone.AsRGBA(img1)
-	img2 = clone.AsRGBA(img2)
-	img := image.NewRGBA(image.Rectangle{
-		Min: image.Point{X: 0, Y: 0},
-		Max: image.Point{X: img1.Bounds().Dx() + img2.Bounds().Dx(), Y: img1.Bounds().Dy()},
-	})
-	var wg sync.WaitGroup
-	wg.Add(img1.Bounds().Dy() + img2.Bounds().Dy())
-	for y := 0; y < img1.Bounds().Dy(); y++ {
-		go func(y int) {
-			defer wg.Done()
-			for x := 0; x < img1.Bounds().Dx(); x++ {
-				r, g, b, a := img1.At(x, y).RGBA()
-				img.Set(x, y, color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)})
-			}
-		}(y)
-	}
-	for y := 0; y < img2.Bounds().Dy(); y++ {
-		go func(y int) {
-			defer wg.Done()
-			for x := 0; x < img2.Bounds().Dx(); x++ {
-				img.Set(x+img1.Bounds().Dx(), y, img2.At(x, y))
-			}
-		}(y)
-	}
-	wg.Wait()
-	return img
-}
-
-func scanDir(path string) (files []string, hello error) {
+func scanDir(path string, exts []string) (files []string, hello error) {
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
 		return
 	}
 	for _, r := range entries {
 		n := strings.ToLower(r.Name())
-		if strings.HasSuffix(n, ".jpg") {
-			files = append(files, path+"/"+r.Name())
+		for _, ext := range exts {
+			if strings.HasSuffix(n, "."+ext) {
+				files = append(files, path+"/"+r.Name())
+			}
 		}
 	}
 	return
@@ -85,7 +52,7 @@ func (s ProcessorStat) SizeAvg() float64 {
 
 type ProcessorStats []*ProcessorStat
 
-func (s ProcessorStats) WriteTo(w io.Writer) {
+func (s ProcessorStats) WriteTo(w io.Writer) (int64, error) {
 	formatRow := "Time (file avg): %15.3fs\n"
 	fmt.Fprintf(w, "\nResults\n-------\n")
 	for _, st := range s {
@@ -96,6 +63,7 @@ func (s ProcessorStats) WriteTo(w io.Writer) {
 		fmt.Fprintf(w, "\n")
 	}
 	fmt.Fprintln(w)
+	return 1, nil
 }
 
 func min(a, b int) int {
@@ -232,14 +200,16 @@ func main() {
 	defer profile.Start().Stop()
 
 	flag.Parse()
-	dir := "/Users/pt.gojekindonesia/go/src/github.com/gojek/darkroom/cmd/speedtest/orig"
-	fmt.Println(dir)
+	var dir string
 	if len(flag.Args()) > 0 {
 		dir = flag.Args()[0]
+	} else {
+		dir = "./orig"
 	}
-	files, _ := scanDir(dir)
+
+	files, _ := scanDir(dir, []string{"jpg", "jpeg", "png"})
 	if len(files) == 0 {
-		fmt.Println("no jpg files found in", dir)
+		fmt.Println("No supported files found in", dir)
 		return
 	}
 	fmt.Printf("Found %d image files in %s\n", len(files), dir)

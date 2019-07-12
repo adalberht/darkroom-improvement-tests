@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.41.0 // indirect
-	github.com/anthonynsimon/bild v0.10.1-0.20190710205720-eee9188e4370 // indirect
+	github.com/anthonynsimon/bild v0.10.1-0.20190710205720-eee9188e4370
 	github.com/aws/aws-sdk-go v1.20.19 // indirect
 	github.com/axw/gocov v1.0.0 // indirect
 	github.com/coreos/bbolt v1.3.3 // indirect
@@ -12,7 +12,7 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/go-kit/kit v0.9.0 // indirect
-	github.com/gojek/darkroom v0.0.3-0.20190711073015-13af3d2b0f4e // indirect
+	github.com/gojek/darkroom v0.0.3-0.20190711073015-13af3d2b0f4e
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
@@ -23,6 +23,7 @@ require (
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/goveralls v0.0.2 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect
+	github.com/pkg/profile v1.3.0
 	github.com/prometheus/common v0.6.0 // indirect
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect
