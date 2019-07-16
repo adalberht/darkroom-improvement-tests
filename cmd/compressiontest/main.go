@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"github.com/anthonynsimon/bild/clone"
@@ -59,7 +60,7 @@ func (s ProcessorStats) WriteTo(w io.Writer) (int64, error) {
 	formatRow := "Time (file avg): %15.3fs\n"
 	_, _ = fmt.Fprintf(w, "\nResults\n-------\n")
 	for _, st := range s {
-		_, _ = fmt.Fprintf(w, "Processor Name: %s", st.Name)
+		_, _ = fmt.Fprintf(w, "Processor Name: %s\n", st.Name)
 		_, _ = fmt.Fprintf(w, "Total: %f\n", st.Total.Seconds())
 		_, _ = fmt.Fprintf(w, formatRow, float64(st.TimeAvg())/1e9)
 		_, _ = fmt.Fprintf(w, "Minimum: %fs\n", st.Minimum.Seconds())
@@ -174,11 +175,16 @@ func Resize(files []string, compressionLevel int) (*ProcessorStat, *ProcessorSta
 				mutex2.Unlock()
 
 				compressedImg, _, _ = cp.Decode(compressedData)
-				compressedData, _ = cp.Encode(compressedImg, "jpg")
+				e := native.PngEncoder{
+					Encoder: &png.Encoder{CompressionLevel: png.BestCompression},
+				}
+				buff := &bytes.Buffer{}
+				_ = e.Encoder.Encode(buff, compressedImg)
+				compressedData = buff.Bytes()
 				compressedImg, _, _ = cp.Decode(compressedData)
 				compressedImg = clone.AsRGBA(compressedImg)
 				y := compressedImg.Bounds().Dy()
-				addLabel(compressedImg.(*image.RGBA), 10, 9*y/10, fmt.Sprintf("Quality %d: %d KB", compressionLevel, len(compressedData)/1024))
+				addLabel(compressedImg.(*image.RGBA), 10, 9*y/10, fmt.Sprintf("PNG bestCompression: %d KB", len(compressedData)/1024))
 			}()
 			wg.Wait()
 
@@ -227,7 +233,7 @@ func main() {
 
 	var results ProcessorStats
 	prevPath := OutPath
-	for i := 0; i <= 100; i += 5 {
+	for i := 100; i <= 100; i += 100 {
 		OutPath = fmt.Sprintf("%s/quality_%d", prevPath, i)
 		_ = os.MkdirAll(OutPath, 0777)
 		ps1, ps2 := Resize(files, i)
