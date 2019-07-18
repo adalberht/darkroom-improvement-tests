@@ -19,3 +19,5 @@ test-images/
 compressiontest
 compression-test-out/
 *.zip
+
+cmd/upload.go
